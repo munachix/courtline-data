@@ -1,9 +1,9 @@
 name: publish
-# Copies Courtline's public scores to the "data" branch every 10 minutes so the
+# Copies Courtline's public data to the "data" branch every 5 minutes so the
 # app can read them through jsDelivr where the main server is blocked (e.g. China).
 on:
   schedule:
-    - cron: '*/10 * * * *'
+    - cron: '*/5 * * * *'
   workflow_dispatch:
 permissions:
   contents: write
@@ -28,7 +28,11 @@ jobs:
           get "api/v1/snapshot?from=$FROM&to=$TO" snapshot.json
           get "api/v1/all-games" allgames.json
           get "community/team-outlooks" outlooks.json
-          python3 -c "import json; [json.load(open('out/'+n)) for n in ('snapshot.json','allgames.json','outlooks.json')]"
+          get "community/power" power.json
+          get "community/race" race.json
+          get "community/articles" articles.json
+          get "community/leaderboard" leaderboard.json
+          python3 -c "import json,glob; [json.load(open(f)) for f in glob.glob('out/*.json')]"
       - name: Publish (one commit, data branch)
         run: |
           set -euo pipefail
@@ -41,6 +45,6 @@ jobs:
           git push -fq "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" data
       - name: Refresh the CDN copy
         run: |
-          for f in snapshot allgames outlooks; do
+          for f in snapshot allgames outlooks power race articles leaderboard; do
             curl -fsS "https://purge.jsdelivr.net/gh/${{ github.repository }}@data/$f.json" > /dev/null || true
           done
